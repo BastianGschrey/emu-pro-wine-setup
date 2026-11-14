@@ -1,60 +1,64 @@
-# EMU PRO + USB2CAN unter Linux (Wine)
+# EMU PRO + USB2CAN on Linux (Wine)
 
-Richtet die Ecumaster-Software **EMU PRO** samt **ECUMASTER USB2CAN**-Adapter unter Wine ein.
+🇬🇧 **English** | 🇩🇪 [Deutsch](README.de.md)
 
-## Was das Skript macht
+Sets up the Ecumaster software **EMU PRO** together with the **ECUMASTER USB2CAN** adapter under Wine.
 
-1. Installiert Wine (nur Debian/Ubuntu/Mint via `apt`, sonst vorher selbst installieren)
-2. Fügt den Benutzer der Gruppe `dialout` hinzu (Zugriff auf `/dev/ttyACM*`)
-3. Legt das Wine-Prefix an
-4. Führt den EMU-PRO-Installer aus
-5. Patcht `EUSB2CAN.dll` (serielle Read-Timeouts – sonst hängt Wine 9 beim Lesen, Fehler `GET_VER_ERR`).
-   Das Original wird als `EUSB2CAN.dll.orig` gesichert.
-6. Trägt den Adapter in die Wine-Registry ein (Geräteeintrag + COM-Port-Zuordnung)
+## What the script does
 
-## Voraussetzungen
+1. Installs Wine (Debian/Ubuntu/Mint via `apt` only – on other distros install it yourself first)
+2. Adds the user to the `dialout` group (access to `/dev/ttyACM*`)
+3. Creates the Wine prefix
+4. Runs the EMU PRO installer
+5. Patches `EUSB2CAN.dll` (serial read timeouts – otherwise Wine 9 hangs while reading, error `GET_VER_ERR`).
+   The original is backed up as `EUSB2CAN.dll.orig`.
+6. Registers the adapter in the Wine registry (device entry + COM port mapping)
 
-- Linux mit `python3`
-- EMU-PRO-Installer (`EMU_PRO_Setup_xxx.exe`) von der Ecumaster-Website – **nicht** in diesem Repo enthalten
-- USB2CAN-Adapter (USB-ID `0483:5740`)
+## Requirements
 
-## Benutzung
+- Linux with `python3`
+- EMU PRO installer (`EMU_PRO_Setup_xxx.exe`) from the Ecumaster website – **not** included in this repo
+- USB2CAN adapter (USB ID `0483:5740`)
+
+## Usage
 
 ```bash
-# Installer neben das Skript oder nach ~/Downloads legen, dann:
+# Put the installer next to the script or into ~/Downloads, then:
 ./emu-pro-wine-setup.sh
 
-# oder Installer direkt angeben:
+# or pass the installer directly:
 ./emu-pro-wine-setup.sh ~/Downloads/EMU_PRO_Setup_xxx.exe
 ```
 
-Nicht als root starten – `sudo` wird bei Bedarf selbst aufgerufen.
-Nach dem ersten Lauf einmal ab- und wieder anmelden (Gruppe `dialout`).
+Do not run as root – the script calls `sudo` itself when needed.
+After the first run, log out and back in once (`dialout` group).
 
-### Optionen
+### Options
 
-| Option | Bedeutung |
+| Option | Meaning |
 |---|---|
-| `--prefix DIR` | Wine-Prefix (Standard: `$WINEPREFIX` oder `~/.wine`) |
-| `--silent` | Installer ohne Dialoge |
-| `--reinstall` | Installer auch ausführen, wenn EMU PRO schon installiert ist |
-| `--serial NR` | Adapter-Seriennummer vorgeben (sonst automatisch erkannt) |
-| `--com N` | erste COM-Nummer (Standard: 33, max. 99) |
-| `--skip-install` | nur DLL-Patch + Adapter-Registrierung |
+| `--prefix DIR` | Wine prefix (default: `$WINEPREFIX` or `~/.wine`) |
+| `--silent` | Run the installer without dialogs |
+| `--reinstall` | Run the installer even if EMU PRO is already installed |
+| `--serial NR` | Specify the adapter serial number (otherwise detected automatically) |
+| `--com N` | First COM port number (default: 33, max. 99) |
+| `--skip-install` | Only DLL patch + adapter registration |
 
-Das Skript kann gefahrlos mehrfach laufen, z. B. nach einem EMU-PRO-Update
-(das die gepatchte DLL überschreibt) oder für einen weiteren Adapter.
+The script is safe to run repeatedly, e.g. after an EMU PRO update
+(which overwrites the patched DLL) or for an additional adapter.
 
-## Fehlerbehebung
+> The script's console output and `--help` text are in German.
 
-- **„Kein Adapter erkannt“** – `lsusb` muss `0483:5740` zeigen; ggf. `--serial` angeben.
-- **„Patch-Muster nicht gefunden“** – vermutlich eine neuere EMU-PRO-Version mit geänderter DLL.
-  Es wurde nichts verändert.
+## Troubleshooting
 
-## Hinweis
+- **"Kein Adapter erkannt"** (no adapter detected) – `lsusb` must show `0483:5740`; otherwise use `--serial`.
+- **"Patch-Muster nicht gefunden"** (patch pattern not found) – probably a newer EMU PRO version with a changed DLL.
+  Nothing has been modified.
 
-Inoffizielles Community-Skript, nicht von Ecumaster. Benutzung auf eigene Gefahr.
+## Disclaimer
 
-## Lizenz
+Unofficial community script, not affiliated with Ecumaster. Use at your own risk.
 
-MIT – siehe [LICENSE](LICENSE).
+## License
+
+MIT – see [LICENSE](LICENSE).
