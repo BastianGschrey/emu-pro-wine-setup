@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  EMU PRO (Ecumaster) + USB2CAN-Adapter unter Wine einrichten
+#  Set up EMU PRO (Ecumaster) + USB2CAN adapter under Wine
 #
-#  Schritte:
-#    1. Wine installieren (Debian/Ubuntu via apt, falls nicht vorhanden)
-#    2. Benutzer in Gruppe "dialout" (Zugriff auf /dev/ttyACM*)
-#    3. Wine-Prefix anlegen
-#    4. EMU PRO installieren (Installer-EXE)
-#    5. EUSB2CAN.dll patchen (serielle Read-Timeouts, sonst haengt Wine 9 beim Lesen)
-#    6. USB2CAN-Adapter in der Wine-Registry anlegen (Fake-Geraeteeintrag + COM-Port)
+#  Steps:
+#    1. Install Wine (Debian/Ubuntu via apt, if not present)
+#    2. Add user to group "dialout" (access to /dev/ttyACM*)
+#    3. Create Wine prefix
+#    4. Install EMU PRO (installer EXE)
+#    5. Patch EUSB2CAN.dll (serial read timeouts, otherwise Wine 9 hangs on read)
+#    6. Register USB2CAN adapter in the Wine registry (fake device entry + COM port)
 #
-#  Aufruf:
-#    ./emu-pro-wine-setup.sh [Optionen] [EMU_PRO_Setup_xxx.exe]
+#  Usage:
+#    ./emu-pro-wine-setup.sh [options] [EMU_PRO_Setup_xxx.exe]
 #
-#  Optionen:
-#    --prefix DIR      Wine-Prefix (Standard: $WINEPREFIX oder ~/.wine)
-#    --silent          Installer ohne Dialoge ausfuehren
-#    --reinstall       automatisch gefundenen Installer auch ausfuehren, wenn
-#                      EMU PRO schon installiert ist (ein als Parameter
-#                      angegebener Installer wird IMMER ausgefuehrt -> Update)
-#    --serial NR       Adapter-Seriennummer vorgeben (sonst automatisch erkannt)
-#    --com N           erste COM-Nummer (Standard: 33, max. 99)
-#    --skip-install    Schritte 1-4 ueberspringen (nur Patch + Adapter)
-#    -h, --help        Hilfe
+#  Options:
+#    --prefix DIR      Wine prefix (default: $WINEPREFIX or ~/.wine)
+#    --silent          run installer without dialogs
+#    --reinstall       run an auto-detected installer even if EMU PRO is
+#                      already installed (an installer passed as argument
+#                      is ALWAYS run -> update)
+#    --serial NR       adapter serial number (otherwise detected automatically)
+#    --com N           first COM port number (default: 33, max. 99)
+#    --skip-install    skip steps 1-4 (patch + adapter only)
+#    -h, --help        show this help
 #
-#  Idempotent: kann beliebig oft erneut ausgefuehrt werden (z.B. nach einem
-#  EMU-PRO-Update, das die gepatchte DLL ueberschreibt, oder fuer einen
-#  weiteren Adapter).
+#  Idempotent: can be re-run any number of times (e.g. after an EMU PRO
+#  update that overwrites the patched DLL, or for an additional adapter).
 # =============================================================================
 set -euo pipefail
 
@@ -43,7 +42,7 @@ c_ok()    { printf '\e[1;32m ✔\e[0m  %s\n' "$*"; }
 c_warn()  { printf '\e[1;33m !\e[0m  %s\n' "$*"; }
 die()     { printf '\e[1;31m ✘  %s\e[0m\n' "$*" >&2; exit 1; }
 
-usage() { sed -n '2,32p' "$0" | sed 's/^#\s\{0,1\}//'; exit 0; }
+usage() { sed -n '3,/^# ====/p' "$0" | sed '$d; s/^#\s\{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -54,13 +53,13 @@ while [[ $# -gt 0 ]]; do
     --com)          COM_START="$2"; shift 2 ;;
     --skip-install) SKIP_INSTALL=1; shift ;;
     -h|--help)      usage ;;
-    -*)             die "Unbekannte Option: $1" ;;
+    -*)             die "Unknown option: $1" ;;
     *)              INSTALLER="$1"; REINSTALL=1; shift ;;
   esac
 done
 
-[[ $EUID -eq 0 ]] && die "Bitte NICHT als root ausfuehren (sudo wird bei Bedarf selbst aufgerufen)."
-command -v python3 >/dev/null || die "python3 wird benoetigt."
+[[ $EUID -eq 0 ]] && die "Do NOT run as root (sudo is invoked automatically when needed)."
+command -v python3 >/dev/null || die "python3 is required."
 
 export WINEPREFIX="$PREFIX"
 export WINEARCH=win64
@@ -75,33 +74,33 @@ DLL="$EMU_DIR/EUSB2CAN.dll"
 # -----------------------------------------------------------------------------
 install_wine() {
   if command -v wine >/dev/null; then
-    c_ok "Wine vorhanden: $(wine --version 2>/dev/null)"
+    c_ok "Wine found: $(wine --version 2>/dev/null)"
     return
   fi
-  c_info "Wine ist nicht installiert."
+  c_info "Wine is not installed."
   if command -v apt-get >/dev/null; then
-    c_info "Installiere Wine via apt (sudo-Passwort wird abgefragt) ..."
+    c_info "Installing Wine via apt (you will be asked for your sudo password) ..."
     sudo dpkg --add-architecture i386
     sudo apt-get update
     sudo apt-get install -y wine wine64 wine32:i386
-    c_ok "Wine installiert: $(wine --version)"
+    c_ok "Wine installed: $(wine --version)"
   else
-    die "Kein apt gefunden. Bitte Wine (inkl. 32-bit-Unterstuetzung) manuell installieren und Skript erneut starten."
+    die "apt not found. Please install Wine (incl. 32-bit support) manually and run the script again."
   fi
 }
 
 # -----------------------------------------------------------------------------
-# 2. dialout-Gruppe
+# 2. dialout group
 # -----------------------------------------------------------------------------
 NEED_RELOGIN=0
 ensure_dialout() {
   if id -nG "$USER" | tr ' ' '\n' | grep -qx dialout; then
-    c_ok "Benutzer ist in Gruppe 'dialout'."
+    c_ok "User is in group 'dialout'."
   else
-    c_info "Fuege $USER zur Gruppe 'dialout' hinzu (fuer Zugriff auf /dev/ttyACM*) ..."
+    c_info "Adding $USER to group 'dialout' (for access to /dev/ttyACM*) ..."
     sudo usermod -aG dialout "$USER"
     NEED_RELOGIN=1
-    c_warn "Gruppe hinzugefuegt - wird erst nach Ab-/Anmelden (oder Neustart) wirksam."
+    c_warn "Group added - takes effect only after logging out/in (or reboot)."
   fi
 }
 
@@ -117,39 +116,39 @@ find_installer() {
 
 install_emu_pro() {
   if [[ ! -d "$PREFIX/drive_c" ]]; then
-    c_info "Lege Wine-Prefix an: $PREFIX"
+    c_info "Creating Wine prefix: $PREFIX"
     wineboot --init >/dev/null 2>&1 || true
     wineserver -w
   fi
-  c_ok "Wine-Prefix: $PREFIX"
+  c_ok "Wine prefix: $PREFIX"
 
   if [[ -f "$EMU_DIR/EMU_PRO.exe" && $REINSTALL -eq 0 ]]; then
-    c_ok "EMU PRO ist bereits installiert (fuer Update: Installer-EXE als Parameter angeben)."
+    c_ok "EMU PRO is already installed (to update: pass the installer EXE as argument)."
     return
   fi
   find_installer
-  [[ -n "$INSTALLER" && -f "$INSTALLER" ]] || die "EMU-PRO-Installer nicht gefunden. Pfad angeben: $0 /pfad/EMU_PRO_Setup_xxx.exe"
-  c_info "Starte EMU-PRO-Installer: $(basename "$INSTALLER")"
+  [[ -n "$INSTALLER" && -f "$INSTALLER" ]] || die "EMU PRO installer not found. Specify path: $0 /path/EMU_PRO_Setup_xxx.exe"
+  c_info "Starting EMU PRO installer: $(basename "$INSTALLER")"
   if [[ $SILENT -eq 1 ]]; then
     wine "$INSTALLER" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- >/dev/null 2>&1 || true
   else
-    c_warn "Bitte den Installer durchklicken. Einen angebotenen USB-Treiber kannst du ueberspringen - unter Wine wird er nicht benutzt."
+    c_warn "Please click through the installer. You can skip the offered USB driver - it is not used under Wine."
     wine "$INSTALLER" >/dev/null 2>&1 || true
   fi
   wineserver -w
-  [[ -f "$EMU_DIR/EMU_PRO.exe" ]] || die "Installation fehlgeschlagen: $EMU_DIR/EMU_PRO.exe fehlt."
-  c_ok "EMU PRO installiert."
+  [[ -f "$EMU_DIR/EMU_PRO.exe" ]] || die "Installation failed: $EMU_DIR/EMU_PRO.exe is missing."
+  c_ok "EMU PRO installed."
 }
 
 # -----------------------------------------------------------------------------
-# 5. EUSB2CAN.dll patchen
+# 5. Patch EUSB2CAN.dll
 #    Original:  SetCommTimeouts(ReadInterval=MAXDWORD, ReadMult=MAXDWORD, ReadConst=100)
-#    Gepatcht:  SetCommTimeouts(ReadInterval=MAXDWORD, ReadMult=0,        ReadConst=0)
-#    Wine 9 schliesst ReadFileEx() bei der Original-Kombination erst nach vollem
-#    Puffer ab -> Versionsabfrage des Adapters laeuft in Timeout (GET_VER_ERR).
+#    Patched:   SetCommTimeouts(ReadInterval=MAXDWORD, ReadMult=0,        ReadConst=0)
+#    With the original combination Wine 9 completes ReadFileEx() only once the
+#    buffer is full -> adapter version query times out (GET_VER_ERR).
 # -----------------------------------------------------------------------------
 patch_dll() {
-  [[ -f "$DLL" ]] || die "$DLL nicht gefunden."
+  [[ -f "$DLL" ]] || die "$DLL not found."
   wineserver -k >/dev/null 2>&1 || true
   python3 -I - "$DLL" <<'PY'
 import re, sys, shutil, os
@@ -183,7 +182,7 @@ PY
 }
 
 # -----------------------------------------------------------------------------
-# 6. Adapter in Registry
+# 6. Adapter in registry
 # -----------------------------------------------------------------------------
 detect_serials() {
   [[ ${#SERIALS[@]} -gt 0 ]] && return
@@ -191,10 +190,10 @@ detect_serials() {
   for i in $(seq 1 60); do
     mapfile -t SERIALS < <(ls /dev/serial/by-id/ 2>/dev/null | sed -nE 's/^usb-ECUMASTER_ECUMASTER_USB2CAN_([^-]+)-if00$/\1/p')
     [[ ${#SERIALS[@]} -gt 0 ]] && return
-    [[ $i -eq 1 ]] && c_warn "Kein USB2CAN-Adapter gefunden - bitte jetzt anstecken (warte 60 s) ..."
+    [[ $i -eq 1 ]] && c_warn "No USB2CAN adapter found - please plug it in now (waiting 60 s) ..."
     sleep 1
   done
-  die "Kein Adapter erkannt. Pruefen: 'lsusb' muss '0483:5740' zeigen. Alternativ --serial NR angeben."
+  die "No adapter detected. Check: 'lsusb' must show '0483:5740'. Alternatively pass --serial NR."
 }
 
 register_adapters() {
@@ -209,7 +208,7 @@ register_adapters() {
   {
     printf 'Windows Registry Editor Version 5.00\r\n\r\n'
     for serial in "${SERIALS[@]}"; do
-      [[ $com -le 99 ]] || die "COM-Nummer > 99 wird von der DLL nicht unterstuetzt."
+      [[ $com -le 99 ]] || die "COM port number > 99 is not supported by the DLL."
       byid="/dev/serial/by-id/usb-ECUMASTER_ECUMASTER_USB2CAN_${serial}-if00"
       key="HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Enum\\USB\\VID_0483&PID_5740\\${serial}"
       python3 -I - "$key" "COM$com" "$byid" <<'PY'
@@ -233,7 +232,7 @@ L = [
  # DEVPKEY_Device_BusReportedDeviceDesc (DEVPROP_TYPE_STRING = 0x12)
  r'[%s\Properties\{540b947e-8b40-45bc-a8a2-6a0b894cbda2}\0004]' % key,
  '@=' + hexs('ECUMASTER USB2CAN', 0x12), '',
- # DEVPKEY_Device_DevNodeStatus / ProblemCode (DEVPROP_TYPE_UINT32 = 7) - Groesse wird unten korrigiert
+ # DEVPKEY_Device_DevNodeStatus / ProblemCode (DEVPROP_TYPE_UINT32 = 7) - size is fixed below
  r'[%s\Properties\{4340a6c5-93fa-4706-972c-7b648008a5a7}\0002]' % key,
  '@=hex(7):0a,20,80,01', '',
  r'[%s\Properties\{4340a6c5-93fa-4706-972c-7b648008a5a7}\0003]' % key,
@@ -249,8 +248,8 @@ PY
   wine regedit /S "$reg" >/dev/null 2>&1
   wineserver -k >/dev/null 2>&1 || true; wineserver -w
 
-  # regedit haengt an Typ-7-Werte einen Terminator an (6 statt 4 Byte) ->
-  # SetupDiGetDevicePropertyW liefert dann ERROR_MORE_DATA. Direkt in system.reg korrigieren.
+  # regedit appends a terminator to type-7 values (6 instead of 4 bytes) ->
+  # SetupDiGetDevicePropertyW then returns ERROR_MORE_DATA. Fix directly in system.reg.
   python3 -I - "$PREFIX/system.reg" <<'PY'
 import re, sys
 p = sys.argv[1]
@@ -269,36 +268,36 @@ open(p, 'w', encoding='utf-8', errors='surrogateescape').write('\n'.join(out))
 
 PY
   rm -rf "$scratch"
-  c_ok "Registry-Eintraege gesetzt."
+  c_ok "Registry entries written."
 }
 
 # -----------------------------------------------------------------------------
 main() {
   echo
-  c_info "EMU PRO + USB2CAN unter Wine einrichten"
+  c_info "Setting up EMU PRO + USB2CAN under Wine"
   if [[ $SKIP_INSTALL -eq 0 ]]; then
     install_wine
     ensure_dialout
     install_emu_pro
   else
-    command -v wine >/dev/null || die "Wine fehlt."
-    [[ -f "$DLL" ]] || die "EMU PRO nicht gefunden in $EMU_DIR"
+    command -v wine >/dev/null || die "Wine is missing."
+    [[ -f "$DLL" ]] || die "EMU PRO not found in $EMU_DIR"
   fi
 
-  c_info "Patche EUSB2CAN.dll ..."
+  c_info "Patching EUSB2CAN.dll ..."
   case "$(patch_dll)" in
-    PATCHED)  c_ok "DLL gepatcht (Original: EUSB2CAN.dll.orig)." ;;
-    ALREADY)  c_ok "DLL ist bereits gepatcht." ;;
-    *)        die "Patch-Muster in EUSB2CAN.dll nicht gefunden (andere EMU-PRO-Version?). Abbruch." ;;
+    PATCHED)  c_ok "DLL patched (original: EUSB2CAN.dll.orig)." ;;
+    ALREADY)  c_ok "DLL is already patched." ;;
+    *)        die "Patch pattern not found in EUSB2CAN.dll (different EMU PRO version?). Aborting." ;;
   esac
 
-  c_info "Suche USB2CAN-Adapter ..."
+  c_info "Looking for USB2CAN adapter ..."
   detect_serials
   register_adapters
 
   echo
-  c_ok "Fertig. EMU PRO ganz normal starten."
-  [[ $NEED_RELOGIN -eq 1 ]] && c_warn "WICHTIG: Einmal ab- und wieder anmelden (dialout-Gruppe), sonst kein Zugriff auf den Adapter."
+  c_ok "Done. Start EMU PRO as usual."
+  [[ $NEED_RELOGIN -eq 1 ]] && c_warn "IMPORTANT: Log out and back in once (dialout group), otherwise no access to the adapter."
   return 0
 }
 main

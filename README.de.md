@@ -22,6 +22,8 @@ Richtet die Ecumaster-Software **EMU PRO** samt **ECUMASTER USB2CAN**-Adapter un
 
 ## Benutzung
 
+Die Ausgaben des Skripts sind auf Englisch.
+
 ```bash
 # Installer neben das Skript oder nach ~/Downloads legen, dann:
 ./emu-pro-wine-setup.sh
@@ -49,8 +51,8 @@ Das Skript kann gefahrlos mehrfach laufen, z. B. nach einem EMU-PRO-Update
 
 ## Fehlerbehebung
 
-- **„Kein Adapter erkannt“** – `lsusb` muss `0483:5740` zeigen; ggf. `--serial` angeben.
-- **„Patch-Muster nicht gefunden“** – vermutlich eine neuere EMU-PRO-Version mit geänderter DLL.
+- **„No adapter detected“** – `lsusb` muss `0483:5740` zeigen; ggf. `--serial` angeben.
+- **„Patch pattern not found“** – vermutlich eine neuere EMU-PRO-Version mit geänderter DLL.
   Es wurde nichts verändert.
 
 ## Hinweis

@@ -47,12 +47,10 @@ After the first run, log out and back in once (`dialout` group).
 The script is safe to run repeatedly, e.g. after an EMU PRO update
 (which overwrites the patched DLL) or for an additional adapter.
 
-> The script's console output and `--help` text are in German.
-
 ## Troubleshooting
 
-- **"Kein Adapter erkannt"** (no adapter detected) – `lsusb` must show `0483:5740`; otherwise use `--serial`.
-- **"Patch-Muster nicht gefunden"** (patch pattern not found) – probably a newer EMU PRO version with a changed DLL.
+- **"No adapter detected"** – `lsusb` must show `0483:5740`; otherwise use `--serial`.
+- **"Patch pattern not found"** – probably a newer EMU PRO version with a changed DLL.
   Nothing has been modified.
 
 ## Disclaimer
