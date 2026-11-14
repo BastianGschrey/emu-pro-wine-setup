@@ -1,0 +1,4 @@
+# Installer und Backups nicht einchecken
+*.exe
+*.orig
+*.bak-*
